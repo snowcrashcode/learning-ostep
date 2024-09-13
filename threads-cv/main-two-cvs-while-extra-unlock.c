@@ -46,7 +46,7 @@ void *producer(void *arg) {
 	    Cond_wait(&empty, &m);  p3;
 	}
 	Mutex_unlock(&m);
-	do_fill(base + i);          p4;
+	do_fill(base + i);          p4; // theres no lock here!!
 	Mutex_lock(&m);
 	Cond_signal(&fill);         p5;
 	Mutex_unlock(&m);           p6;
@@ -64,7 +64,7 @@ void *consumer(void *arg) {
 	    Cond_wait(&fill, &m);  c3;
         }
 	Mutex_unlock(&m);
-	tmp = do_get();            c4;
+	tmp = do_get();            c4; // theres no lock here!
 	Mutex_lock(&m);
 	Cond_signal(&empty);       c5;
 	Mutex_unlock(&m);          c6;

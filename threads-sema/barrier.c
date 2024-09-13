@@ -14,6 +14,11 @@
 
 typedef struct __barrier_t {
     // add semaphores and other information here
+    sem_t s1;
+    sem_t s2;
+    sem_t mutex;
+    int threadsQueued;
+    int threadsTotal;
 } barrier_t;
 
 
@@ -22,10 +27,39 @@ barrier_t b;
 
 void barrier_init(barrier_t *b, int num_threads) {
     // initialization code goes here
+    sem_init(&b->mutex, 0, 1); // mutex semaphore is usually initialized to 1, so that u can lock (wait) it and value will still be 0, hence allowing thread to immediately run after acquiring lock
+    sem_init(&b->s1, 0, 0);
+    sem_init(&b->s2, 0, 0);
+    b->threadsTotal = num_threads;
+    b->threadsQueued = 0;
 }
 
 void barrier(barrier_t *b) {
     // barrier code goes here
+    
+    // First Phase: Arrival of threads
+    // critical region: if queue of threads at barrer is full, signal to semaphore1 so that it can execute child one by one
+    sem_wait(&b->mutex); // acquire lock. Updating of threadsQueud must be atomic.
+    b->threadsQueued++;
+    if (b->threadsTotal == b->threadsQueued) { // all threads of the program are now waiting at the barrier
+        for (int i = 0; i < b->threadsTotal; ++i) {
+            sem_post(&b->s1); // wake up barrier's first semaphore
+        }
+    }
+    sem_post(&b->mutex);
+    sem_wait(&b->s1); // each thread is waiting on s1, which blocks all threads until the last thread as arrived and wakes them up (line 44's for loops) 
+
+    // Second Phase: Departure of threads
+    // critical region :  
+    sem_wait(&b->mutex);
+    b->threadsQueued--;
+    if (b->threadsQueued == 0) { // when last thread is leaving barrier
+        for (int i = 0; i < b->threadsTotal; ++i) {
+            sem_post(&b->s2); // All thread waits on s2 to ensure that they don't leave the barrier prematurely, thus synchronizing their departure
+        }
+    }
+    sem_post(&b->mutex);
+    sem_wait(&b->s2);
 }
 
 //

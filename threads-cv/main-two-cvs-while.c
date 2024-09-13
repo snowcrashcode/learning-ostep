@@ -13,16 +13,16 @@
 #include "pc-header.h"
 
 // used in producer/consumer signaling protocol
-pthread_cond_t empty  = PTHREAD_COND_INITIALIZER;
-pthread_cond_t fill   = PTHREAD_COND_INITIALIZER;
-pthread_mutex_t m     = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t empty  = PTHREAD_COND_INITIALIZER; // signal to producer thread that buffer is empty
+pthread_cond_t fill   = PTHREAD_COND_INITIALIZER; // signal to consumer thread that buffer is full
+pthread_mutex_t m     = PTHREAD_MUTEX_INITIALIZER; // lock to ensure that only one c/p thread accesses the shared buffer at a time
 
 #include "main-header.h"
 
 void do_fill(int value) {
     // ensure empty before usage
     ensure(buffer[fill_ptr] == EMPTY, "error: tried to fill a non-empty buffer");
-    buffer[fill_ptr] = value;
+    buffer[fill_ptr] = value; 
     fill_ptr = (fill_ptr + 1) % max;
     num_full++;
 }
@@ -67,9 +67,8 @@ void *consumer(void *arg) {
 	Mutex_unlock(&m);          c6;
 	consumed_count++;
     }
-
     // return consumer_count-1 because END_OF_STREAM does not count
-    return (void *) (long long) (consumed_count - 1);
+    return (void *) (long long) (consumed_count - 1);  // returns a pointer to last element of shared buffer
 }
 
 // must set these appropriately to use "main-common.c"

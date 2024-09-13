@@ -74,9 +74,9 @@ void *producer(void *arg) {
     for (i = 0; i < loops; i++) {   p0;
         Mutex_lock(&m);             p1;
         while (num_full == max) {   p2;
-            Cond_wait(&empty, &m);  p3;
+            Cond_wait(&empty, &m);  p3; // if buffer is full, wait
         }
-        do_fill(i);                 p4;
+        do_fill(i);                 p4; // put elements into shared buffer
         Cond_signal(&fill);         p5;
         Mutex_unlock(&m);           p6;
     }
@@ -192,17 +192,17 @@ prompt> ./main-two-cvs-while -l 1 -m 2 -p 1 -c 1 -P 1,0,0,0,0,0,0 -C 0 -v
 
 The results:
  NF             P0 C0
-  0 [*---  --- ] p0
+  0 [*---  --- ] p0 // grabs first value from sleep specification (1), so sleep for 1 second
   0 [*---  --- ]    c0
-  0 [*---  --- ]    c1
-  0 [*---  --- ]    c2
-  0 [*---  --- ] p1
-  1 [u  0 f--- ] p4
-  1 [u  0 f--- ] p5
-  1 [u  0 f--- ] p6
+  0 [*---  --- ]    c1 // grab lock
+  0 [*---  --- ]    c2 // since queue is empty, release lock and sleep
+  0 [*---  --- ] p1 // grabs lock
+  1 [u  0 f--- ] p4 // since buffer has empty slot, produce a value into it
+  1 [u  0 f--- ] p5 
+  1 [u  0 f--- ] p6 // releases lock
   1 [u  0 f--- ] p0
-  1 [u  0 f--- ]    c3
-  0 [ --- *--- ]    c4
+  1 [u  0 f--- ]    c3 // consumer acquires lock
+  0 [ --- *--- ]    c4 // consumes value
   0 [ --- *--- ]    c5
   0 [ --- *--- ]    c6
   0 [ --- *--- ]    c0
@@ -224,5 +224,3 @@ consumer. Thus, if you create two producers and three consumers (with
 or `-C 0,1,2:0:3,3,3,1,1,1`). Sleep strings can be shorter than the
 number of sleep points in the code; the remaining sleep slots are
 initialized to be zero.
-
-

@@ -56,6 +56,12 @@ Overall, trend is as expected, since resource sharing, context switching, and lo
 
 4) Build a version of the linked list that uses hand-over-hand locking as cited in the chapter. You should read the paper first to understand how it works, and then implement it. Measure its performance. When does a hand-over-hand list work better than a standard list as shown in the chapter?
 
+Using a basic concurrent linked list with a single lock for the entire list in the program `concurrent-linked-list.c`, my machine took 0.000977s lookup list node key == 500000 
+
+Using hand-over-hand linked list, my machine took 0.003222s to lookup list node key == 500000.
+
+Clearly, hand-over-hand linked list performed worse than just using a single lock. This was very much expected, as the repeated lock acquisition and unlocking will result in expensive lock overheads.
+
 A: When **concurrent traversal and modification of the list are frequent**.
 
 1) **Frequent Insertions and Deletions at different positions**
@@ -93,6 +99,8 @@ Multiple threads are likely to work on adjacent nodes, suc as when performing ad
 A:
 I pick B-tree. From wikipedia: "B-tree is a self-balancing tree data structure that maintains sorted data and allows searches, sequential access, insertions, deletions in logarithmic time. The B-tree generalizes the binary search tree, allowing for nodes with more than 2 children. Unlike other self-balancing binary search trees, the B-tree is well suited for storage systems that read and write relativeyly large blocks of data, such as databases and file systems."
 
+Using the `b-tree-simple.c` program, my machine took 0.000006s to insert all of those nodes.
+
 6) Finally, think of a more interesting locking strategy for this favourite data structure of yours. Implement it, and measure its performance. How does it compare to the straightforward locking apprroach?
 
 A: We can implement **concurrent locking** or **lock coupling**, which are strategies that allow multiple threads to access different parts of the B-tree simulatenously, improving concurrency and performance.
@@ -102,37 +110,41 @@ Here are some advanced locking strategies that I have gathered:
 1) **Node-Level Locking (Fine-Grained Locking)**
 - Instead of locking the entire B-tree, each node has its own lock. Different threads can then work on different parts of the tree concurrently.
 - Read locks can be used for searching, while write locks are needed for inserting/deleting. This is much more efficient than locking the entire structure.
-+: Increased concurrency, as threads working on different parts of the trees don't block each other.
--: Cons: More complex to implement, as it requires managing locks for multiple nodes
++ : Increased concurrency, as threads working on different parts of the trees don't block each other.
+- : Cons: More complex to implement, as it requires managing locks for multiple nodes
 
 2) **Lock Coupling (Hand-over-Hand locking)**
 - Thread locks a node and its parent simulatenously when moving down the tree. As thread moves to the next node, it releases the lock on the parent while acquiring the lock on the next node.
 - Ensures safety and correctness
-+: Provides a good balance between performance and safety
--: Lock acquisition and release overhead can still be significant, especially for deep trees.
++ : Provides a good balance between performance and safety
+- : Lock acquisition and release overhead can still be significant, especially for deep trees.
 
 3) **Optimistic Concurrency Control**
 - Allows threads to traverse B-tree without acquiring locks initially. Instead, they check if the structure they've read changes before making modifications (via a version number or timestamp mechanism)
 - If conflict is detected, the operation is retried.
-+: High performance in read-heavy workloads or situations where conflicts are rare.
--: Threads may need to retry operations in case of contention, which could downgrade performance under high write contention.
++ : High performance in read-heavy workloads or situations where conflicts are rare.
+- : Threads may need to retry operations in case of contention, which could downgrade performance under high write contention.
 
-4) **Lock-Free B-Trees (Optimistic Lock-Free Algorithms)
+4) **Lock-Free B-Trees (Optimistic Lock-Free Algorithms)**
 - Use atomic operations (like CAS - Compare And Swap) to ensure that updates to the B-trees are done safely without locking
 - Lock-free B-trees allow threads to operate concurrently for locks to be released, even under high contention. 
-+: Extremely high concurrency, especially for read-heavy workloads
--: Very complex to implement and maintain, with subtle bugs related to memory consistency models being harder to detect.
++ : Extremely high concurrency, especially for read-heavy workloads
+- : Very complex to implement and maintain, with subtle bugs related to memory consistency models being harder to detect.
 
 5) **Reader-Writer Locks**
 - Variation of fine-grained locking. Uses reader-writer locks at the node level to allow muliple readers to access the same node concurrently but enforcing exclusivity for writers.
-+: More concurrency for read-heavy operations
--: Complex lock management and potential forr reader-writer prriority inversion, where a long series of reads can starve writers
++ : More concurrency for read-heavy operations
+- : Complex lock management and potential forr reader-writer prriority inversion, where a long series of reads can starve writers
 
 6) **Range Locking**
 - In cases where B-trees support range queries, lock entire ranges of keys rather than individual nodes
 - Allows threads to operate on non-overlapping key ranges concurrently while still ensuring consistency for range queries.
-+: Better scalability for range queries, especially if ranges can be processed independetly
--: Complex lock management when ranges overlap
++ : Better scalability for range queries, especially if ranges can be processed independetly
+- : Complex lock management when ranges overlap
+
+As you can observe from the program `b-tree-hand-over-hand.c`, I chose to implemented hand-over-hand locking on the B-tree.
+Now, time taken to perform all operations: 0.000006s
+A simple analysis will reveal that hand-over-hand locking did not result in any performance issues - but this is due to my B-tree implementation being very shallow (only max depth of 5). Hence, this hand-over-hand B-Tree will be able to enjoy the benefits of hand-over-hand locking - namely, safety and correctness - without suffering from performance degradation. However, the same likely can't be said for a B-Tree with greater depth.
 
 <u>What is multithreading?</u>
 - Intel's trademarked "Hyperthreading"; AMD calls it "Simultaneous Multi-Threading". They are both essentially the same thing. Multithreading is the broader term referring to that encompasses SMT, Hyperthreading, but also coarse-grained things like "switch on stall" or in-order barrel processors. You can refer to Wikipedia to find out more about multithreading.
