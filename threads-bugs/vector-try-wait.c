@@ -13,12 +13,12 @@ int retry = 0;
 
 void vector_add(vector_t *v_dst, vector_t *v_src) {
   top:
-    if (pthread_mutex_trylock(&v_dst->lock) != 0) {
-	goto top;
+    if (pthread_mutex_trylock(&v_dst->lock) != 0) { // If destination lock is not availabe, non-zero value is returned, go back to top
+	goto top; // Ensures thread can proceed only if it has successfully acquired destionation lock
     }
-    if (pthread_mutex_trylock(&v_src->lock) != 0) {
+    if (pthread_mutex_trylock(&v_src->lock) != 0) { // If source lock is not available, non-zero value is returned, go back to top
 	retry++;
-	Pthread_mutex_unlock(&v_dst->lock);
+	Pthread_mutex_unlock(&v_dst->lock); // unlock destionation lock
 	goto top;
     }
     int i;
